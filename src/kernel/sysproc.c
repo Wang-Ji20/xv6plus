@@ -18,11 +18,6 @@ sys_exit(void)
   return 0;  // not reached
 }
 
-uint64
-sys_getpid(void)
-{
-  return myproc()->pid;
-}
 
 uint64
 sys_fork(void)
@@ -48,8 +43,8 @@ sys_sbrk(void)
   if(argint(0, &n) < 0)
     return -1;
   addr = myproc()->sz;
-  if(growproc(n) < 0)
-    return -1;
+  if(n < 0 && (growproc(n) < 0)) return -1;
+  else myproc()->sz += n;
   return addr;
 }
 
@@ -99,6 +94,7 @@ sys_uptime(void)
 
 extern int freeMemory(void);
 extern int numproc(void);
+extern void vmprint(pagetable_t pgt, int depth);
 
 uint64
 sys_sysinfo(void){
@@ -114,6 +110,40 @@ sys_sysinfo(void){
   if(copyout(myproc()->pagetable, pg, (char *) &s, sizeof(s)) < 0)
     return -1;
 
+  vmprint(myproc()->pagetable, 0);
   return 0;
 
+}
+
+extern pte_t * walk(pagetable_t pagetable, uint64 va, int alloc);
+
+uint64
+sys_pgaccess(void)
+{
+  // lab pgtbl: your code here.
+  uint64 start_address = 0;
+  int pages_to_check = 0;
+  uint64 buffer = 0;
+  uint64 bitmask = 0;
+
+  if(argaddr(0, &start_address) < 0 || argint(1, &pages_to_check) < 0 ||
+  argaddr(2, &buffer) < 0)
+    return -1;
+  
+  for (int i = 0; i < pages_to_check && i < 64; i++)
+  {
+    uint64 virtualAddr = start_address + i * PGSIZE;
+    pte_t* tpte = walk(myproc()->pagetable, virtualAddr, 0);
+    if(tpte == 0 || (((*tpte) & (PTE_V | PTE_U)) == 0))
+      return -1;
+    if(*tpte & PTE_A){
+      *tpte = *tpte & ~PTE_A;
+      bitmask |= (1 << i);
+    }
+  }
+  
+  if(copyout(myproc()->pagetable, buffer, (char*)&bitmask, sizeof(bitmask)) < 0)
+    return -1;
+
+  return 0;
 }

@@ -1,5 +1,6 @@
 #include "kernel/types.h"
 #include "kernel/stat.h"
+#include "kernel/riscv.h"
 #include "user/user.h"
 #include "kernel/sysinfo.h"
 
@@ -9,6 +10,5 @@ main(void){
     if(sysinfo(&s) < 0) exit(-1);
 
     printf("free memory: %d(bytes)\nprocs number: %d\n",s.freemem,s.nproc);
-
     exit(0);
 }

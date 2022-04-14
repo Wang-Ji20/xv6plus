@@ -9,7 +9,6 @@
 #define SYS_fstat   8
 #define SYS_chdir   9
 #define SYS_dup    10
-#define SYS_getpid 11
 #define SYS_sbrk   12
 #define SYS_sleep  13
 #define SYS_uptime 14
@@ -21,3 +20,4 @@
 #define SYS_mkdir  20
 #define SYS_close  21
 #define SYS_sysinfo 22
+#define SYS_pgaccess 23
