@@ -132,7 +132,9 @@ UPROGS=\
 	$U/_grind\
 	$U/_wc\
 	$U/_zombie\
-	$U/_vmstat
+	$U/_vmstat\
+	$U/_cowtest\
+	$U/_lazytests
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

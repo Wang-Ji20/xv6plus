@@ -17,6 +17,28 @@ extern char etext[];  // kernel.ld sets this to end of kernel code.
 
 extern char trampoline[]; // trampoline.S
 
+extern uint8 ref_cnt[];
+extern struct spinlock rcLock;
+
+int 
+cow(pagetable_t pagetable, pte_t* pte){
+    char* mem;
+    uint64 pa = PTE2PA(*pte);
+    if((mem = kalloc()) == 0){
+      return -1;
+    }
+    
+    memmove(mem, (char*)pa, PGSIZE);
+    *pte = *pte & (~PTE_COW);  
+    *pte = *pte | PTE_W;  
+    uint64 flags = PTE_FLAGS(*pte);
+    *pte = PA2PTE(mem) | flags;
+
+    kfree((void*)pa);
+    return 0;
+}
+
+
 // Make a direct-map page table for the kernel.
 pagetable_t
 kvmmake(void)
@@ -79,11 +101,16 @@ kvminithart()
 //   21..29 -- 9 bits of level-1 index.
 //   12..20 -- 9 bits of level-0 index.
 //    0..11 -- 12 bits of byte offset within the page.
+extern void vmprint(pagetable_t, int);
+
 pte_t *
 walk(pagetable_t pagetable, uint64 va, int alloc)
 {
-  if(va >= MAXVA)
+  if(va >= MAXVA){
+    vmprint(pagetable, 0);
+    printf("%p", va);
     panic("walk");
+  }
 
   for(int level = 2; level > 0; level--) {
     pte_t *pte = &pagetable[PX(level, va)];
@@ -172,8 +199,10 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
 
   if((va % PGSIZE) != 0)
     panic("uvmunmap: not aligned");
-
+  
+  // printf("free from %p to %p, total %d pages\n",va, va + npages*PGSIZE, npages);
   for(a = va; a < va + npages*PGSIZE; a += PGSIZE){
+    // printf("freeing %p\n", a);
     if((pte = walk(pagetable, a, 0)) == 0)
       continue;
     if((*pte & PTE_V) == 0)
@@ -257,6 +286,7 @@ uvmdealloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
 
   if(PGROUNDUP(newsz) < PGROUNDUP(oldsz)){
     int npages = (PGROUNDUP(oldsz) - PGROUNDUP(newsz)) / PGSIZE;
+    // printf("freeaddr: %p\n", newsz);
     uvmunmap(pagetable, PGROUNDUP(newsz), npages, 1);
   }
 
@@ -288,6 +318,7 @@ freewalk(pagetable_t pagetable)
 void
 uvmfree(pagetable_t pagetable, uint64 sz)
 {
+  // printf("child dead free %d\n",sz);
   if(sz > 0)
     uvmunmap(pagetable, 0, PGROUNDUP(sz)/PGSIZE, 1);
   freewalk(pagetable);
@@ -305,22 +336,28 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   pte_t *pte;
   uint64 pa, i;
   uint flags;
-  char *mem;
 
   for(i = 0; i < sz; i += PGSIZE){
+    // LAZY ALLOCATION
     if((pte = walk(old, i, 0)) == 0)
       continue;
     if((*pte & PTE_V) == 0)
       continue;
     pa = PTE2PA(*pte);
+
+    (*pte) = (*pte) & (~PTE_W);
+    (*pte) = (*pte) | PTE_COW; 
+    // COW
+
+    
     flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto err;
-    memmove(mem, (char*)pa, PGSIZE);
-    if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
-      kfree(mem);
+    if(mappages(new, i, PGSIZE, pa, flags) != 0){
       goto err;
     }
+
+    acquire(&rcLock);
+    ref_cnt[(uint64)pa >> 12]++;
+    release(&rcLock);
   }
   return 0;
 
@@ -376,6 +413,15 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
         }
       }
     }
+
+    pte_t* pte = walk(pagetable, va0, 0);
+    if((pte == 0) || ((*pte & PTE_V) == 0) || ((*pte & PTE_U) == 0)) return -1;
+    if((*pte & PTE_W) == 0){
+      if(cow(pagetable, pte) < 0)
+        return -1;
+    }
+    pa0 = PTE2PA(*pte);
+
     n = PGSIZE - (dstva - va0);
     if(n > len)
       n = len;

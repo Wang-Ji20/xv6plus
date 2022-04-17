@@ -2086,7 +2086,7 @@ sbrkbasic(char *s)
   enum { TOOMUCH=1024*1024*1024};
   int i, pid, xstatus;
   char *c, *a, *b;
-
+//printf("1");
   // does sbrk() return the expected failure value?
   pid = fork();
   if(pid < 0){
@@ -2107,9 +2107,10 @@ sbrkbasic(char *s)
     // we should not get here! either sbrk(TOOMUCH)
     // should have failed, or (with lazy allocation)
     // a pagefault should have killed this process.
+
     exit(1);
   }
-
+  // printf("f");
   wait(&xstatus);
   if(xstatus == 1){
     printf("%s: too much memory allocated!\n", s);
@@ -2316,6 +2317,7 @@ sbrkfail(char *s)
     printf("%s: allocate a lot of memory succeeded %d\n", s, n);
     exit(1);
   }
+  //printf("");
   wait(&xstatus);
   if(xstatus != -1 && xstatus != 2)
     exit(1);
@@ -2927,7 +2929,7 @@ main(int argc, char *argv[])
     printf("FAILED -- lost some free pages %d (out of %d)\n", free1, free0);
     exit(1);
   } else {
-    printf("ALL TESTS PASSED\n");
+    printf("ALL TESTS PASSED\n free1: %d free0: %d", free1, free0);
     exit(0);
   }
 }

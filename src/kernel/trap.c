@@ -10,6 +10,8 @@ struct spinlock tickslock;
 uint ticks;
 
 extern char trampoline[], uservec[], userret[];
+extern pte_t* walk(pagetable_t, uint64, int);
+extern int cow(pagetable_t pagetable, pte_t* pte);
 
 // in kernelvec.S, calls kerneltrap().
 void kernelvec();
@@ -46,7 +48,9 @@ usertrap(void)
   w_stvec((uint64)kernelvec);
 
   struct proc *p = myproc();
-  
+  pte_t* pte;
+  uint64 virtualA;
+
   // save user program counter.
   p->trapframe->epc = r_sepc();
   
@@ -69,22 +73,48 @@ usertrap(void)
     // ok
   } 
   else if(r_scause() == 15 || r_scause() == 13){
-    uint64 faultAddr = PGROUNDDOWN(r_stval());
-    if(faultAddr >= (uint64)p->sz || faultAddr < (uint64)p->trapframe->sp){
-      p->killed = 1;
-      exit(-1);
+    virtualA = r_stval();
+    if(virtualA >= MAXVA) {
+        p->killed = 1;
+        exit(-1);
+      }
+
+    pte = walk(p->pagetable, virtualA, 0);
+    if(r_scause() == 15 && pte && ((*pte & PTE_COW) != 0))
+    { 
+      if(pte == 0)
+        panic("cow: pte");
+      if(((*pte) & PTE_V) == 0)
+        panic("cow: not valid");
+      if(((*pte) & PTE_U) == 0)
+        panic("cow: not user");
+      if(cow(p->pagetable, pte) < 0){
+        p->killed = 1;
+        exit(-1);
+      }
     }
 
-    char* mem;
-    mem = kalloc();
-    if(mem == 0){
-      p->killed = 1;
-    }
+// LAZY maybe buggy: free memory problem run out memory and clean up
     else{
-      memset(mem, 0, PGSIZE);
-      if(mappages(p->pagetable, faultAddr, PGSIZE, (uint64)mem, PTE_W|PTE_R|PTE_U) != 0){
-        kfree(mem);
+      uint64 faultAddr = PGROUNDDOWN(virtualA);
+      if(faultAddr >= (uint64)p->sz || faultAddr < (uint64)p->trapframe->sp){
         p->killed = 1;
+        exit(-1);
+      }
+
+      char* mem;
+      mem = kalloc();
+      if(mem == 0){
+        p->killed = 1;
+        exit(-1);
+      }
+      else{
+        memset(mem, 0, PGSIZE);
+        if(mappages(p->pagetable, faultAddr, PGSIZE, (uint64)mem, PTE_W|PTE_R|PTE_U) != 0){
+          kfree(mem);
+          p->killed = 1;
+          exit(-1);
+        }
       }
     }
   } 
