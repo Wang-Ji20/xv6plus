@@ -5,6 +5,7 @@ xv6 + better memory management
 http://xv6.dgs.zone/
 
 # TODO:
+
 1. display memory infomation (similar to vmstat) OK
 
    shows: free memory, processes, page table
@@ -50,3 +51,47 @@ https://github.com/anandthegreat/xv7
 https://mit-public-courses-cn-translatio.gitbook.io/mit6-s081/
 
 使用git：https://www.runoob.com/git/git-remote-repo.html
+
+## Appendix： 中期报告
+
+一、已选题目调研
+
+内存管理是操作系统的核心机制之一。通过一层地址空间的抽象，操作系统赋予每个进程以单独的内存空间的假象，隔离开了每一个进程，使之不会互相干扰。除此以外，还能实现很多有意思的机制。
+
+在xv6中，我们（xv6的设计者是这么称呼的，所以我们也这么称呼）采用术语“虚拟内存”代表每个进程都有自己虚拟的地址空间，不指代交换和替换机制。
+
+参考通行操作系统的机制，我们设计了以下的目标。
+
+
+
+二、预期功能目标
+
+已实现：
+
+- 系统调用：vmstat 显示内存状况
+- 共享内存：内核与页表共享
+- 页错误：懒惰页分配(lazy page allocation)
+- 页错误：写时复制 fork (COW fork)
+
+要实现：
+
+- 系统调用：mmap 内存映射
+- 页错误：覆盖交换(swapping)机制（另一种说法，虚拟内存）
+- 页错误：需求分页(demand paging)机制
+- 空闲空间分配：伙伴分配法(buddy allocator)
+
+
+
+三、技术框架
+
+覆盖交换:
+
+交换谁？ 2Q Replacement - Linux Kernel的方法，两个队列，交换不常使用的
+
+怎么换？mmap 特殊区域
+
+高低水位 一次换一个cluster
+
+需求分页：
+
+改造 exec 系统调用
