@@ -110,3 +110,13 @@ pgaccess:
  li a7, SYS_pgaccess
  ecall
  ret
+.global mmap
+mmap:
+ li a7, SYS_mmap
+ ecall
+ ret
+.global munmap
+munmap:
+ li a7, SYS_munmap
+ ecall
+ ret

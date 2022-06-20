@@ -327,6 +327,15 @@ fork(void)
 
   safestrcpy(np->name, p->name, sizeof(p->name));
 
+  for(int i = 0; i < 16; i++) {
+    if(p->vmas[i].size) {
+        memmove(&(np->vmas[i]), &(p->vmas[i]), sizeof(struct VMA));
+        filedup(p->vmas[i].the_file_being_mapped);
+    } else {
+        np->vmas[i].used = 0;
+    }
+  }
+
   pid = np->pid;
 
   release(&np->lock);
@@ -357,6 +366,8 @@ reparent(struct proc *p)
   }
 }
 
+extern int 
+munmap(void *addr, uint length);
 // Exit the current process.  Does not return.
 // An exited process remains in the zombie state
 // until its parent calls wait().
@@ -366,8 +377,14 @@ exit(int status)
   struct proc *p = myproc();
 
   if(p == initproc)
-    panic("init exiting");
+    {panic("init exiting");}
 
+  for(int i = 0; i < 16; i++) {
+      struct VMA *v = &(p->vmas[i]);
+      if(v->size != 0){
+        munmap((void *)v->address, v->size);
+  }
+  }
   // Close all open files.
   for(int fd = 0; fd < NOFILE; fd++){
     if(p->ofile[fd]){

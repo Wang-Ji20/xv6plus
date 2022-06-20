@@ -26,6 +26,18 @@ struct cpu {
   int intena;                 // Were interrupts enabled before push_off()?
 };
 
+struct VMA{
+  uint64 used;
+  uint64 address;
+  uint64 size;
+  uint64 endaddr;
+  uint64 permissions;
+  struct file* the_file_being_mapped;
+  uint64 flags;
+  uint64 offset;
+};
+
+
 extern struct cpu cpus[NCPU];
 
 // per-process data for the trap handling code in trampoline.S.
@@ -106,5 +118,6 @@ struct proc {
   struct context context;      // swtch() here to run process
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
+  struct VMA vmas[16];
   char name[16];               // Process name (debugging)
 };

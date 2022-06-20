@@ -1,0 +1,6 @@
+make --dry-run --keep-going --print-directory
+make: Entering directory '/mnt/c/Users/82446/OneDrive - mails.tsinghua.edu.cn/CS/System/OS/xv6plus'
+make: Leaving directory '/mnt/c/Users/82446/OneDrive - mails.tsinghua.edu.cn/CS/System/OS/xv6plus'
+ 
+make: *** No targets specified and no makefile found.  Stop.
+

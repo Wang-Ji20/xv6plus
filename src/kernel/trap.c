@@ -12,6 +12,7 @@ uint ticks;
 extern char trampoline[], uservec[], userret[];
 extern pte_t* walk(pagetable_t, uint64, int);
 extern int cow(pagetable_t pagetable, pte_t* pte);
+extern int lazy_mapping(struct proc* p, uint64 addr);
 
 // in kernelvec.S, calls kerneltrap().
 void kernelvec();
@@ -69,9 +70,7 @@ usertrap(void)
     intr_on();
 
     syscall();
-  } else if((which_dev = devintr()) != 0){
-    // ok
-  } 
+  }
   else if(r_scause() == 15 || r_scause() == 13){
     virtualA = r_stval();
     if(virtualA >= MAXVA) {
@@ -93,31 +92,42 @@ usertrap(void)
         exit(-1);
       }
     }
-
-// LAZY maybe buggy: free memory problem run out memory and clean up
+    // lazy allocation
     else{
-      uint64 faultAddr = PGROUNDDOWN(virtualA);
-      if(faultAddr >= (uint64)p->sz || faultAddr < (uint64)p->trapframe->sp){
+      if(virtualA >= (uint64)p->sz || virtualA < (uint64)p->trapframe->sp){
         p->killed = 1;
         exit(-1);
       }
 
-      char* mem;
-      mem = kalloc();
-      if(mem == 0){
+      int mmapret = lazy_mapping(p, r_stval());
+      if(mmapret < 0) {
+        printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+        printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
         p->killed = 1;
         exit(-1);
       }
-      else{
-        memset(mem, 0, PGSIZE);
-        if(mappages(p->pagetable, faultAddr, PGSIZE, (uint64)mem, PTE_W|PTE_R|PTE_U) != 0){
-          kfree(mem);
+      if(mmapret == 5){
+        uint64 faultAddr = PGROUNDDOWN(virtualA);
+        char* mem;
+        mem = kalloc();
+        if(mem == 0){
           p->killed = 1;
           exit(-1);
         }
+        else{
+          memset(mem, 0, PGSIZE);
+          if(mappages(p->pagetable, faultAddr, PGSIZE, (uint64)mem, PTE_W|PTE_R|PTE_U) != 0){
+            kfree(mem);
+            p->killed = 1;
+            exit(-1);
+          }
+        }
       }
     }
-  } 
+  }
+  else if((which_dev = devintr()) != 0){
+    // ok
+  }  
   else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());

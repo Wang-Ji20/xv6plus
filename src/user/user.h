@@ -25,6 +25,8 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 int sysinfo(struct sysinfo* );
+void *mmap(void *addr, uint64 length, int proc, int flags, int fd, uint64 offsets);
+int munmap(void *addr, uint64 length);
 
 // ulib.c
 int stat(const char*, struct stat*);

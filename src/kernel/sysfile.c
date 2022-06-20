@@ -15,6 +15,7 @@
 #include "sleeplock.h"
 #include "file.h"
 #include "fcntl.h"
+#include "mmap.h"
 
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
@@ -483,4 +484,57 @@ sys_pipe(void)
     return -1;
   }
   return 0;
+}
+
+uint64
+sys_mmap(void){
+  uint64 addr;
+  if(argaddr(0, &addr) < 0){
+    panic("mmap: no address");
+  }
+
+  int length;
+  if(argint(1, &length) < 0){
+    panic("mmap: no length");
+  }
+
+  int prot;
+  if(argint(2, &prot) < 0){
+    panic("mmap: no prot");
+  }
+
+  int flags;
+  if(argint(3, &flags) < 0){
+    panic("mmap: no flags");
+  }
+
+  int fd;
+  struct file* mappedfile;
+  if (argfd(4, &fd, &mappedfile) < 0)
+  {
+    panic("mmap: no fd");
+  }
+
+  int offset;
+  if (argint(5, &offset) < 0){ 
+    panic("mmap: no offset");
+  }
+  
+  return (uint64)mmap((void *)addr, length, prot, flags, mappedfile, offset);
+}
+
+
+uint64
+sys_munmap(void){
+  uint64 addr;
+  if(argaddr(0, &addr) < 0){
+    panic("munmap: no address");
+  }
+
+  int length;
+  if(argint(1, &length) < 0){
+    panic("munmap: no length");
+  }
+
+  return munmap((void *)addr, length);
 }

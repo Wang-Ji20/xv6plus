@@ -37,3 +37,5 @@ entry("sleep");
 entry("uptime");
 entry("sysinfo");
 entry("pgaccess");
+entry("mmap");
+entry("munmap");
