@@ -4,6 +4,7 @@
         "memlayout.h": "c",
         "stat.h": "c",
         "riscv.h": "c",
-        "cstdio": "c"
+        "cstdio": "c",
+        "types.h": "c"
     }
 }

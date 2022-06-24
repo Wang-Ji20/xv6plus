@@ -85,6 +85,11 @@ dup:
  li a7, SYS_dup
  ecall
  ret
+.global getpid
+getpid:
+ li a7, SYS_getpid
+ ecall
+ ret
 .global sbrk
 sbrk:
  li a7, SYS_sbrk
