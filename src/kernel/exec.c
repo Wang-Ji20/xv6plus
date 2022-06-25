@@ -9,6 +9,7 @@
 
 static int loadseg(pde_t *pgdir, uint64 addr, struct inode *ip, uint offset, uint sz);
 
+uint64 pageNum = 2;
 int
 exec(char *path, char **argv)
 {
@@ -68,12 +69,12 @@ exec(char *path, char **argv)
   // Use the second as the user stack.
   sz = PGROUNDUP(sz);
   uint64 sz1;
-  if((sz1 = uvmalloc(pagetable, sz, sz + 3*PGSIZE)) == 0)
+  if((sz1 = uvmalloc(pagetable, sz, sz + (1 + pageNum) * PGSIZE)) == 0)
     goto bad;
   sz = sz1;
-  uvmclear(pagetable, sz-3*PGSIZE);
+  uvmclear(pagetable, sz - (1 + pageNum) * PGSIZE);
   sp = sz;
-  stackbase = sp - 2*PGSIZE;
+  stackbase = sp - pageNum * PGSIZE;
 
   // Push argument strings, prepare rest of stack in ustack.
   for(argc = 0; argv[argc]; argc++) {
