@@ -65,8 +65,8 @@ exec(char *path, char **argv)
   p = myproc();
   uint64 oldsz = p->sz;
 
-  // Allocate two pages at the next page boundary.
-  // Use the second as the user stack.
+  // Allocate several pages at the next page boundary.
+  // Use the first page as guardian, the rest as the user stack.
   sz = PGROUNDUP(sz);
   uint64 sz1;
   if((sz1 = uvmalloc(pagetable, sz, sz + (1 + pageNum) * PGSIZE)) == 0)
